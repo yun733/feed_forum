@@ -1,0 +1,26 @@
+app:
+  name: ZhihuForum
+  port: "9090"
+  jwtsecret: "your-production-jwt-secret-change-me"
+
+database:
+  dsn: "root:ljf356368@tcp(127.0.0.1:3306)/exchangeapp?charset=utf8mb4&parseTime=True&loc=Local"
+  MaxIdleConns: 11
+  MaxOpenConns: 114
+
+redis:
+  addr: "localhost:6379"
+  password: ""
+  db: 0
+
+rabbitmq:
+  url: "amqp://guest:guest@localhost:5672/"
+
+feed:
+  big_v_threshold: 10000
+  timeline_max_items: 500
+  timeline_ttl_days: 30
+  cold_timeline_ttl_days: 30
+  fanout_batch_size: 1000
+  fanout_timeout_ms: 500
+  cursor_page_size: 20
