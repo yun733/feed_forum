@@ -57,7 +57,7 @@ func GetUnreadCount(ctx *gin.Context) {
 // ConsumeNotifications RabbitMQ消费方：异步创建通知
 func ConsumeNotifications() {
 	ch, _ := global.RabbitMQConn.Channel()
-	q, _ := ch.QueueDeclare(mq.NotifyQueue, true, false, false, false, nil)
+	q, _ := ch.QueueDeclare(mq.NotifyQueue, true, false, false, false, mq.DLXTable(mq.NotifyQueue))
 	ch.QueueBind(q.Name, mq.RoutingKeyNotify, mq.ExchangeName, false, nil)
 	msgs, _ := ch.Consume(q.Name, "", false, false, false, false, nil)
 

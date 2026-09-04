@@ -129,7 +129,7 @@ func LikeComment(ctx *gin.Context) {
 // SyncLikesConsumer RabbitMQ消费者：同步点赞数据到MySQL
 func SyncLikesConsumer() {
 	ch, _ := global.RabbitMQConn.Channel()
-	q, _ := ch.QueueDeclare(mq.LikeSyncQueue, true, false, false, false, nil)
+	q, _ := ch.QueueDeclare(mq.LikeSyncQueue, true, false, false, false, mq.DLXTable(mq.LikeSyncQueue))
 	ch.QueueBind(q.Name, mq.RoutingKeyLikeSync, mq.ExchangeName, false, nil)
 	msgs, _ := ch.Consume(q.Name, "", false, false, false, false, nil)
 

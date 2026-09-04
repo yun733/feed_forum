@@ -53,13 +53,20 @@ func InitRabbitMQ(url string) {
 	log.Println("RabbitMQ initialized successfully")
 }
 
+// DLXTable returns the dead-letter-exchange args for a queue.
+// Use this when declaring the same queue in consumer channels to avoid
+// PRECONDITION_FAILED errors from mismatched arguments.
+func DLXTable(queueName string) amqp.Table {
+	return amqp.Table{
+		"x-dead-letter-exchange":    ExchangeName + ".dlx",
+		"x-dead-letter-routing-key": queueName + ".dead",
+	}
+}
+
 func declareQueue(ch *amqp.Channel, queueName, routingKey string) {
 	q, err := ch.QueueDeclare(
 		queueName, true, false, false, false,
-		amqp.Table{
-			"x-dead-letter-exchange":    ExchangeName + ".dlx",
-			"x-dead-letter-routing-key": queueName + ".dead",
-		},
+		DLXTable(queueName),
 	)
 	if err != nil {
 		log.Fatalf("failed to declare queue %s: %v", queueName, err)

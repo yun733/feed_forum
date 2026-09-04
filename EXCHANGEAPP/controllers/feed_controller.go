@@ -372,7 +372,7 @@ func ConsumeFeedPush() {
 		return
 	}
 
-	q, err := ch.QueueDeclare(mq.FeedPushQueue, true, false, false, false, nil)
+	q, err := ch.QueueDeclare(mq.FeedPushQueue, true, false, false, false, mq.DLXTable(mq.FeedPushQueue))
 	if err != nil {
 		log.Printf("[FeedConsumer] Failed to declare queue: %v", err)
 		return
