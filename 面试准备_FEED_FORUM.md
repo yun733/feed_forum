@@ -52,7 +52,7 @@
 │   ├── Vue3 技术栈与状态管理
 │   ├── 登录态、路由守卫（⚠️ 没有）
 │   ├── 通知获取方式（⚠️ 无轮询/推送）
-│   └── 前后端联调 / 分页不一致（⚠️）
+│   └── 前后端联调 / 游标已打通；仍无路由守卫与通知推送（⚠️）
 └── R7 短板自曝与改进方向（必问）
 ```
 
@@ -348,7 +348,7 @@
 **➡️ 推荐答案（自曝）：**
 
 > 一个是代理端口：后端 `config.yml` 端口 9090，前端 `vite.config.ts` 代理 target 从 8080 改到 9090 对齐（这个改动就是最近修的）。
-> 另一个不一致：后端 Feed 已支持**游标分页**，但前端 `FeedList.vue:48-51` 请求 `/feed` 时用的还是 `page/size`。这说明后端能力有，前端没同步消费。改进项：前端换成游标参数，避免深翻页。
+> 分页这块**已打通**：后端 Feed 游标分页 + 前端 `FeedList.vue` 关注流现在按 `next_cursor` 加载更多（不再传 `page/size`）。真正剩余的坑是**前端没有路由守卫**、**通知无轮询/推送**（仅页面挂载时拉一次未读数），见 R7。
 
 ---
 
@@ -361,7 +361,7 @@
 | 1 | **DLX 死信无消费者**，死信消息滞留（`mq/rabbitmq.go:59-64`） | 补死信队列 + 消费者：重试入原队列（限制次数）、最终转人工/告警 |
 | 2 | **Outbox 写入和业务写库不在同一事务** | 本地消息表 + 业务操作放同一 DB 事务，保证原子性 |
 | 3 | **GetFollowers/GetFollowing 存在 N+1**（`follow_controller.go:102-110`） | 批量 `IN` 查询 + 内存重排 |
-| 4 | **前端无路由守卫 / 无轮询推送 / 分页参数未同步** | 加 `beforeEach` 守卫、SSE/短轮询通知、前端换游标分页 |
+| 4 | **前端无路由守卫 / 通知无轮询推送**（未读数仅挂载时拉一次） | 加 `beforeEach` 守卫、SSE/短轮询通知 |
 | 5 | **无部署编排 / 无压测报告 / 单次提交** | 补 Dockerfile + docker-compose + nginx、留档压测报告、补 README 和设计文档 |
 | 6 | **全局限流（令牌桶）已实现但注释未启用**（`router.go:24`） | 按环境开启，或下沉到网关层 |
 | 7 | **本地无死信/L1 缓存扩容方向**：ActiveWindow 单机 5 万上限 | 多实例时按用户 ID 一致性哈希分片，L1 只缓存本实例热点 |
@@ -386,6 +386,192 @@
 > - "这个岗位最看重候选人的什么能力？"
 > - "团队现在的 Feed/社区业务遇到的最大技术挑战是什么？"
 > - "如果我有幸入职，前三个月最希望我解决的 tech debt 是哪个？"
+
+---
+
+## 附录 · 全站前后端全链路流程（第 0–6 节）
+
+> 这一节回答"这个全站项目的前后端全链路流程"：把**浏览器点一下 → HTTP 请求 → 后端中间件/控制器 → 异步 MQ → 数据落到 MySQL/Redis** 的每一条链路按顺序串起来。可作为 R1–R7 之外的"横向贯穿复习"，也可直接用于"请讲一条完整的全链路"这类开场题。
+
+---
+
+### 0. 一句话总览
+
+> 一个 **Go(Gin) 后端 + Vue3 前端** 的"仿知乎/微博"社交应用。前端负责渲染与交互，所有数据走 `/api` REST 接口；后端用 **MySQL 存事实、Redis 扛热点（时间线/计数/缓存/去重/活跃标记）、RabbitMQ 做异步解耦（Feed 写扩散、点赞落库、通知）**；Feed 流是核心，采用 **推拉结合 + 大V 分治 + 游标分页 + 三层去重 + 熔断降级** 的高性能方案。
+
+```
+[Vue3 SPA :5173]  axios(baseURL=/api) ── vite proxy ──▶ http://localhost:9090
+                                                            │
+   Browser ─ Vue Router(路由) ─ Pinia(store) ─ axios拦截器(带JWT)
+                                                            ▼
+                                             ┌────────────────────────────┐
+                                             │   Gin Engine(9090)          │
+                                             │  CORS + [TokenBucket限流*]   │
+                                             │    分组路由 (router)          │
+                                             │      └─ AuthMiddleware        │
+                                             │           ▼                   │
+                                             │      Controllers              │
+                                             │      Services / Utils         │
+                                             └────┬────────┬────────┬───────┘
+                                     MySQL(事实) Redis(缓存) RabbitMQ(异步)
+                                    8+表含outbox │ 时间线/计数/布隆   │ topic交换机"zhihu.topic"
+                                 活跃标记/锁/空值 │ 活跃标记/锁/空值  │ 3队列(Feed/Notify/LikeSync)
+                                                └──────────────┴──▶ 3个后台消费者goroutine
+```
+
+**技术栈**：前端 `Exchangeapp_frontend/` = Vue3 + TS + Vite + Element Plus + Pinia + Vue Router + axios；后端 `EXCHANGEAPP/` = Go + Gin + GORM(MySQL) + go-redis + amqp091 + JWT + bcrypt + viper；中间件 = MySQL8、Redis、RabbitMQ。
+
+---
+
+### 1. 基础设施（先答这层）
+
+#### 端口 / 代理
+| 项 | 值 |
+|---|---|
+| 后端监听 | `:9090`（`EXCHANGEAPP/config/config.yml`）|
+| 前端 dev | `:5173`，`vite.config.ts` 把 `/api/*` 透传后端 9090，CORS 只放行 `localhost:5173` |
+| MySQL | 库 `exchangeapp`；GORM AutoMigrate 全表 + 手工建索引（`config/db.go:29-58`）|
+| Redis | `localhost:6379 db0` |
+| RabbitMQ | `amqp://guest:guest@localhost:5672/` |
+
+#### 数据表（`models/*`）
+`users` / `articles` / `comments`（`parent_id` 自引用楼中楼）/ `follows` / `likes` / `notifications` / `exchange_rates` / `outbox_messages`。
+索引配合查询：articles 的 FULLTEXT `ft_article_search(title,content)`、`(status,created_at)`、`(author_id,status,created_at)`；users `last_active_at`；follows 双向；outbox `(status,next_retry_at)`。
+
+#### 路由总表（`router/router.go:12-83`）
+- 公开：`POST /api/auth/login|register`、`GET /api/exchangeRates`；
+- 其余**全部挂 `AuthMiddleware`**（浏览/操作都要求登录态）：文章 CRUD/搜索、点赞、评论、关注、`/feed`、用户、通知。
+- 预留 Redis **令牌桶限流**中间件（`middlewares/ratelimit_middleware.go`），路由中注释未启用。
+
+---
+
+### 2. 后端进程启动时序（`main.go:18-44`）
+
+```
+main()
+├─ config.InitConfig()         读 config.yml
+├─ config.InitDB()             GORM 连 MySQL + AutoMigrate 建表 + 建索引(含FULLTEXT)
+├─ config.InitRedis()          ping Redis
+├─ mq.InitRabbitMQ()           topic交换机"zhihu.topic" + 3队列 + Publisher Confirms
+├─ controllers.InitFeedServices()    Feed 三件套全局服务
+│    ├─ ActiveWindow  本地滑动窗口(1s批量flush Redis)
+│    ├─ global.MarkActiveFunc = ActiveWin.MarkActive    ← 注入，破 Auth↔Feed 循环依赖
+│    ├─ FeedPullSvc / BigVSvc(带熔断器) / FeedDedupSvc(布隆+Set)
+├─ NewOutboxService(5s).Start()      定时扫 outbox_messages 重试
+├─ mq.OutboxFallbackFunc=outbox.Enqueue  MQ发消息失败的本地落库兜底
+├─ 起3个消费者: ConsumeFeedPush / ConsumeNotifications / SyncLikesConsumer
+├─ router.SetupRouter() + http.Server :9090
+└─ 优雅关闭：信号→停Outbox→srv.Shutdown(5s)→关MQ连接   (main.go:63-86)
+```
+
+---
+
+### 3. 一次受保护请求的后端通用生命周期
+
+```
+Gin路由 → CORS → AuthMiddleware → Controller → (Service / Redis / DB) → JSON响应
+```
+
+**AuthMiddleware**（`middlewares/auth_middleware.go:14-36`）：
+1. 取 `Authorization` 头 → `utils.ParseJWT`（HS256，自动剥 `"Bearer "` 前缀）→ `userID/username` 注入 gin Context；
+2. `refreshLastActive`（`auth_middleware.go:43-67`）活跃节流：`SETNX user:active:throttle:{id}`（5 分钟）去重 → `MarkActiveFunc` 只写**本地 dirty map**（0 网络 IO，1s 批量 flush 到 Redis `user:active:{id}`，TTL 7 天）→ goroutine 异步 UPDATE MySQL `last_active_at`（持久化兜底）。
+
+> 面试点：活跃状态 = **进程内本地窗口(L1) + Redis(L2) + MySQL 异步持久化**三层，写路径尽量 0 网络 IO（`utils/active_window.go`）。
+
+---
+
+### 4. 黄金全链路走查（一条主线贯穿全部核心组件）
+
+> 用户 A **发文章 → 粉丝 B 拉 Feed → B 点赞 → B 收到通知**，一镜到底。
+
+#### 4.1 发文章（前端 → Controller → MQ）
+1. 前端 `ArticleEditor.vue submitArticle` → `POST /api/articles`，axios 拦截器自动带 `Authorization`（`src/axios.ts:7-14`）；
+2. 后端 `CreateArticle`（`controllers/article_controller.go:32-67`）：取 userID → **DFA 敏感词过滤** `ad/spam`（`utils/sensitive_words.go`）→ 默认 `published` → `Db.Create` 落库 + `Preload("Author")` → 模糊删列表缓存 `articles:list:*` → 发布态则 `go pushArticleToFeed(article)`；
+3. `pushArticleToFeed` → `mq.PublishWithOutbox(routingKey="feed.push.article", body=整篇JSON)`：走 topic 交换机 + **Publisher Confirms**，失败自动落 MySQL `outbox_messages` 兜底（`mq/rabbitmq.go:80-117`）；
+4. 响应前端 200。
+
+#### 4.2 后端消费 + 写扩散（Fanout）
+`ConsumeFeedPush`（`controllers/feed_controller.go:368-418`）手动 Ack 消费：
+1. 反序列化 article；
+2. `isUserActive(作者ID)`：ActiveWindow L1 → Redis L2；**作者不活跃直接 Ack 跳过**（该文交给"拉"路径兜底）。作者刚发文章必然刚被标活跃，正常推进；
+3. `BigVSvc.FanoutArticle(article)`（`services/bigv_fanout.go:44-86`）：
+   - 先查熔断器 `Allow()`：熔断开启 → 标 `feed:degraded:{id}`（24h）降级 pull-only；
+   - 查粉丝数（Redis 缓存 5min → MySQL count）vs `big_v_threshold=10000` 自动分流；
+   - 普通/大V 都走 `batchFanout`：粉丝按 1000/批 **Pipeline** 对每人 `ZADD feed:timeline:{fid}`（score=文章时间戳）+ `ZRemRangeByRank` 只留 500 条 + `EXPIRE` 30 天；
+   - 单批超时（500ms）→ `RecordFailure`，连失 3 次熔断（CLOSED→OPEN，30s 冷却→HALF_OPEN 放一个探测→连成 2 次恢复，`services/circuit_breaker.go`）；
+4. 完成 `msg.Ack`。
+
+#### 4.3 粉丝 B 拉 Feed（读路径 = 推拉结合 + 游标）
+前端 `FeedList.vue` **关注 Tab** 现已走游标：首页不带 cursor 拉第一页，点"加载更多"带上一次返回的 `next_cursor` 翻页（不再传 `page/size`）；**最新 Tab** 保持 offset 页码打 `/articles`。后端 `GetFeed`（`controllers/feed_controller.go:187-293`）：
+1. 取用户已读 ID 集合（`feed:read:{uid}` Redis Set → map）；
+2. **Phase 1 · Push 热路径**：读 `feed:timeline:{uid}` ZSet，首屏 `ZREVRANGE 0..size-1`，带 cursor 则 `ZREVRANGEBYSCORE` 取 `score < cursor.Score`（游标 = base64(`score:articleID`)，`FeedCursor`，`feed_controller.go:140-173`）；候选 ID → 批量 `SELECT id IN (...) status='published'` 回 MySQL，按 ZSet 顺序重排（`fetchArticlesByIDs`，`feed_controller.go:299-344`）、`Preload("Author")`、**剔除已读**；
+3. **Phase 2/3 · Pull 兜底**：不足 size 时 `fillFeedWithMutex`（`feed_controller.go:475-510`）用 `SETNX feed:mutex:timeline:{uid}` **互斥锁防击穿**（3s），抢到锁者执行 `rebuildFeed`：
+   - **Phase2** `FeedPullSvc.PullFromInactiveUsers`（`feed_pull_service.go:152-243`）：关注列表（本地缓存 `following:{uid}`）→ `FilterInactive` 找**7 天不活跃的被关注作者** → 时间倒序分片扫 `(status,created_at)`，内存过滤凑满；
+   - **Phase3** `BigVSvc.GetColdArticles`（`bigv_fanout.go:209-228`）：MySQL 补最近 30 天 `author_id IN (关注)` 的"冷数据"（大V降级/漏推的洞）；
+   - 结果写 `feed:pull:cache:{uid}`（30s）后放锁；没抢到锁的自旋 100ms×30 次读缓存，超时降级空返回；
+4. 组装 `items + next_cursor + has_more`；
+5. **异步整页标已读** `FeedDedup.MarkBatchAsRead`（`feed_controller.go:274-285`）：布隆 `feed:bloom:read` + Set `feed:read:{uid}`（TTL 7 天），key=`{articleID}:{createdAt秒}`。
+
+> **三层去重**（`utils/dedup.go:38-66`）：①布隆说"没读过"→ 新文章直接放行；②布隆说"可能读过" → Set 精确确认（消假阳性）；③Set 里有 → 真读过，过滤。布隆快、Set 准、时间戳 key 唯一兜底。
+
+#### 4.4 B 点赞
+1. 前端详情页 `toggleLike` → `POST /api/articles/{id}/like`；
+2. `LikeArticle`（`controllers/like_controller.go:16-63`）用 **Redis Lua** 原子 toggle（`article:{id}:likes` + `article:{id}:liked:{uid}`，EXPIRE 30 天），毫秒返回 `{liked, like_count}`；
+3. goroutine 发 MQ `like.sync`（`PublishWithOutbox` 兜底）；
+4. `SyncLikesConsumer`（`like_controller.go:130-171`）消费 → MySQL `FirstOrCreate` Like 记录 + `like_count±1`（GREATEST 防负）→ 发 `notification.like`；
+5. `ConsumeNotifications` 消费 → 组装 `Notification` 落库（跳过自通知）。
+
+#### 4.5 B 收到通知
+- 前端 `NavBar` 挂载时 `fetchUnreadCount` → `GET /api/notifications/unread-count`（**无 WS/SSE，仅挂载拉一次**，见 R6 短板）；
+- `NotificationView` → `GET /api/notifications` 分页 + `Preload("FromUser")`；点击未读 → `PUT /notifications/{id}/read`（`WHERE id AND user_id` 防越权）→ 按 type 跳转。
+
+---
+
+### 5. 其余业务链路端到端要点
+
+- **注册/登录/鉴权**：前端 `Login/Register.vue` → Pinia `authStore` → `POST /api/auth/login|register`；后端 bcrypt 存/校验 → 签发 JWT（HS256、`{user_id,username}`、72h、自带 `Bearer ` 前缀，`utils/utils.go:28-44`）→ 前端存 localStorage，拦截器自动带头。
+- **文章列表/详情 = 缓存三件套演示**：列表 `GetArticles`（`article_controller.go:78-132`）用 `CacheProtector.GetOrSetWithLock`（key `articles:list:{page}:{size}:{category}`，`SETNX cache:lock:` 互斥防击穿 + TTL±15% 抖动防雪崩）；详情 `GetArticleByID`（`article_controller.go:135-184`）用 `GetOrSetWithNullGuard`（不存在也缓存空值 `__CACHE_NULL__` 30s 防穿透），命中后异步 `view_count+1` + `SETBIT dau:{date}` 记 DAU，点赞数改从 Redis 计数读。
+- **热榜**：`GetHotFeed`（`feed_controller.go:51-133`）= 近 30 天 published → **Wilson Score(z=1.96)** + **时间衰减** `gravity/(hoursAgo+2)` + 互动分 → 内存排序分页（详见 Q11）。
+- **评论**：`CreateComment`（`comment_controller.go:14-55`）落库 + `comment_count+1` + goroutine 发 `notification.comment`；读时一次查全量**内存组楼中楼树**；评论点赞 `LikeComment`（`like_controller.go:85-127`）走 Redis Lua + **同步**更新 MySQL（与文章点赞异步不同）。
+- **关注/取关**：`FollowUser`（`follow_controller.go:17-85`）查存则删、否则建，双向检测置 `is_mutual`；变更后**失效缓存**：本地 `following:{uid}` + Redis `user:{id}:follower_count`；goroutine 发 `notification.follow`。
+- **搜索**：`SearchArticles`（`article_controller.go:266-296`）MySQL FULLTEXT `MATCH(title,content) AGAINST('+q*' IN BOOLEAN MODE)`。
+- **汇率(demo)**：唯一公开 GET `exchangeRates` 全量查表，前端本地换算；写接口带鉴权。
+
+---
+
+### 6. 复用清单（面试加分速记）
+
+**Redis Key 汇总**
+| 用途 | Key 形态 |
+|---|---|
+| 关注时间线(ZSet) | `feed:timeline:{uid}` |
+| 已读精确去重(Set) | `feed:read:{uid}` |
+| 已读布隆 | `feed:bloom:read` |
+| 拉路径缓存/互斥锁 | `feed:pull:cache:{uid}` / `feed:mutex:timeline:{uid}` |
+| 大V降级标记 | `feed:degraded:{articleID}` |
+| 活跃用户/节流 | `user:active:{uid}`(TTL7d) / `user:active:throttle:{uid}` |
+| 粉丝数 | `user:{id}:follower_count` |
+| 点赞 | `article:{id}:likes` / `article:{id}:liked:{uid}` |
+| 列表/详情缓存与锁 | `articles:list:*` / `article:detail:{id}` / `cache:lock:*` |
+| DAU 位图 | `dau:{yyyy-MM-dd}` |
+| 关注列表本地缓存(进程内) | `following:{uid}` |
+
+**RabbitMQ 拓扑**（topic 交换机 `zhihu.topic`，durable + Publisher Confirms + DLX）
+| 队列 | 路由键 | 消费者 | 作用 |
+|---|---|---|---|
+| `feed.push.queue` | `feed.push.article` | ConsumeFeedPush | 文章写扩散到粉丝时间线 |
+| `notification.queue` | `notification.*` | ConsumeNotifications | like/comment/follow → 落库通知 |
+| `like.sync.queue` | `like.sync` | SyncLikesConsumer | Redis 点赞计数异步落 MySQL |
+
+**可靠性 / 性能模式**（对应到代码逐一可讲）
+1. **Outbox 本地消息表兜底**（MQ 故障不丢消息，5s 扫描 + 指数退避，`services/outbox_service.go`）；
+2. **Publisher Confirms + 消息持久化 + DLX 死信**；
+3. **Feed 推拉结合 + 大V 分治 + 熔断降级**（超阈值分 1000/批 Pipeline；超时/连失→熔断→pull-only→半开恢复）；
+4. **缓存击穿/穿透/雪崩三防**（互斥锁 + 空值缓存 + TTL 抖动，另备逻辑过期）；
+5. **三层去重**（布隆快筛 + Set 精判 + 时间戳唯一键）；
+6. **游标分页**（ZSet score 滑动，避免深翻页）——前端关注流已按 `next_cursor` 打通；
+7. **活跃用户本地滑动窗口批量 flush**（写 0 网络 IO，读两级）；
+8. bcrypt 散列、DFA 敏感词 O(n) 过滤、JWT 无状态鉴权、令牌桶限流中间件（预留）。
 
 ---
 
