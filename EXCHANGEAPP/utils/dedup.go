@@ -147,16 +147,26 @@ func (fd *FeedDedup) GetReadArticleIDs(ctx context.Context, userID uint) (map[ui
 	if err != nil {
 		return nil, err
 	}
+	return ParseReadMembers(members), nil
+}
 
+// ParseReadMembers 把 `SMEMBERS feed:read:<uid>` 的原始成员解析成文章 ID 集合
+//
+// 单独抽出来是因为读路径现在把 SMEMBERS 和 timeline / outbox 的读取
+// 打包进同一个 pipeline 了，拿到的是裸的成员数组，而不是 FeedDedup 方法的返回值。
+// 成员格式是 "<articleID>:<timestamp>"，和 MarkAsRead 写入的保持一致。
+func ParseReadMembers(members []string) map[uint]bool {
 	result := make(map[uint]bool, len(members))
 	for _, m := range members {
 		var articleID uint
-		fmt.Sscanf(m, "%d:", &articleID)
+		if _, err := fmt.Sscanf(m, "%d:", &articleID); err != nil {
+			continue
+		}
 		if articleID > 0 {
 			result[articleID] = true
 		}
 	}
-	return result, nil
+	return result
 }
 
 // BloomFilter 增强版布隆过滤器（导出供外部使用）

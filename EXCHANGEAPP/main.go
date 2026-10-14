@@ -69,6 +69,11 @@ func main() {
 	// 停止 Outbox 扫描器
 	outboxSvc.Stop()
 
+	// 停止 Feed 异步组件：B 类 worker 池 + 失败重试 worker
+	if controllers.BigVSvc != nil {
+		controllers.BigVSvc.Stop()
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 

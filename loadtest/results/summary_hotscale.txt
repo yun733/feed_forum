@@ -1,0 +1,4 @@
+hot:small@vus20            reqs=280656  rps=9354.4  avg=1.93ms  p50=1.66ms  p95=3.93ms  p99=5.51ms  max=19.49ms  failed=0.00%  vus_max=20  dropped=0
+hot:small@vus100           reqs=229030  rps=7632.3  avg=12.77ms  p50=2.77ms  p95=68.03ms  p99=89.35ms  max=1059.83ms  failed=0.00%  vus_max=100  dropped=0
+hot:big@vus20              reqs=459  rps=15.0  avg=1321.15ms  p50=1313.32ms  p95=1568.79ms  p99=1702.27ms  max=1743.19ms  failed=0.00%  vus_max=20  dropped=0
+hot:big@vus100             reqs=469  rps=13.4  avg=6788.84ms  p50=6628.81ms  p95=11062.37ms  p99=13657.27ms  max=14533.57ms  failed=0.00%  vus_max=100  dropped=0

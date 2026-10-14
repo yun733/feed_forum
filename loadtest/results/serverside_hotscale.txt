@@ -1,0 +1,4 @@
+hot:small@vus20:BEFORE|rss=164634624|threads=136|cpuseq=3884.1|mysql(conn=12,run=2,q=30398356,lockwait=58719,lockavg=302)|redis(cli=277,cmds=16919395,mem=7.00M,blocked=0)|active=35|throttle=0
+hot:small@vus100:BEFORE|rss=68145152|threads=136|cpuseq=4158.8|mysql(conn=12,run=2,q=31260401,lockwait=58719,lockavg=302)|redis(cli=277,cmds=17200280,mem=7.00M,blocked=0)|active=35|throttle=0
+hot:big@vus20:BEFORE|rss=73994240|threads=136|cpuseq=4634.5|mysql(conn=12,run=2,q=31863778,lockwait=58719,lockavg=302)|redis(cli=277,cmds=17429539,mem=7.00M,blocked=0)|active=35|throttle=0
+hot:big@vus100:BEFORE|rss=923181056|threads=136|cpuseq=5219.5|mysql(conn=12,run=2,q=31866923,lockwait=58719,lockavg=302)|redis(cli=277,cmds=17430227,mem=7.00M,blocked=0)|active=35|throttle=0

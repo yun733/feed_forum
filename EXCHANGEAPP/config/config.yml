@@ -17,10 +17,47 @@ rabbitmq:
   url: "amqp://guest:guest@localhost:5672/"
 
 feed:
-  big_v_threshold: 10000
+  # ===== 路由阈值：按粉丝量的 ABC 分层 =====
+  # 决策信号是 followerCount（纯函数，可预测/可测试/可解释），不是「耗时超没超 1 秒」
+  #   A 类 < 5000        → 同步推：写成本 ≤ 1.5 万条命令，秒级完成；读侧 ZREVRANGE O(1)
+  #   B 类 5000 ~ 50 万  → 异步延迟推：写成本可控，但不阻塞发文主流程
+  #   C 类 >= 50 万      → 不推，只写作者 outbox：推的边际收益已归零
+  tier_a_max_followers: 5000
+  tier_c_min_followers: 500000
+
+  # ===== 阈值反推依据（不要拍脑袋）=====
+  # 可物化 inbox 上限 N = inbox_memory_budget_mb × 1024² ÷ timeline_bytes_per_user
+  # 本机实测：32768MB ÷ 44558B ≈ 70 万
+  #   即：这台机器最多只能为约 70 万个用户物化 inbox
+  # 实际占用 ≈ min(总用户数, DAU) × 44558B —— 只有活跃用户才真的占内存（维度二）
+  # 所以阈值应落在几千量级，并随 dau_estimate 变化而调整
+  inbox_memory_budget_mb: 32768
+  timeline_bytes_per_user: 44558
+  dau_estimate: 200000
+
   timeline_max_items: 500
   timeline_ttl_days: 30
   cold_timeline_ttl_days: 30
   fanout_batch_size: 1000
-  fanout_timeout_ms: 500
+  # 现在是纯保护机制（防单条消息永久阻塞消费者），命中即告警，不再静默降级
+  fanout_timeout_ms: 1000
   cursor_page_size: 20
+
+  # ===== C 类作者 outbox（全局共享，每个大V一个 key）=====
+  outbox_ttl_days: 30
+  outbox_max_items: 500
+  # 每个大V单次读归并取多少条，决定 K 路归并的量级
+  outbox_fetch_limit: 50
+  # K 的硬上限：关注的大V超过这个数就按粉丝量截断
+  max_tier_c_authors_per_user: 100
+  tier_c_set_cache_ttl_seconds: 60
+
+  # ===== 维度二：只为活跃读者物化 inbox =====
+  materialize_active_only: true
+
+  # ===== 消费者背压 =====
+  consumer_prefetch: 32
+
+  # ===== 推送失败重试（替代 feed:degraded 死代码标记）=====
+  fanout_max_retries: 3
+  fanout_retry_scan_ms: 10000

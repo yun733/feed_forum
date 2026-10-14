@@ -1,2 +1,12 @@
 # 个人面试准备文档，不入库
 /面试准备_FEED_FORUM.md
+
+# 编译产物
+EXCHANGEAPP/server.exe
+EXCHANGEAPP/server
+EXCHANGEAPP/server_v1.exe
+*.exe
+
+# 压测产出的凭证与中间文件（tokens.json 是 50 个真实 JWT，不要入库）
+/loadtest/data/tokens.json
+/loadtest/results/watch_*.txt

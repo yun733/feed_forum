@@ -1,0 +1,1 @@
+article-detail:d-art@vus400  reqs=93271  rps=2992.5  avg=80.56ms  p50=3.11ms  p95=14.20ms  p99=34.34ms  max=31002.04ms  failed=37.56%  vus_max=400  dropped=0

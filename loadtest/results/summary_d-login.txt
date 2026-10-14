@@ -1,0 +1,2 @@
+login:d-login@vus100         reqs=4856  rps=158.7  avg=623.14ms  p50=623.77ms  p95=668.82ms  p99=703.94ms  max=1078.61ms  failed=0.00%  vus_max=100  dropped=0
+login:d-login@vus200         reqs=5104  rps=163.5  avg=1197.13ms  p50=1140.54ms  p95=1771.69ms  p99=2147.36ms  max=2859.78ms  failed=0.00%  vus_max=200  dropped=0

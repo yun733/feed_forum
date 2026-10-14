@@ -1,0 +1,30 @@
+  [reset:warm] active=35 throttle=0
+feed:after@vus20:BEFORE|rss=75345920|threads=85|cpuseq=519.1|mysql(conn=12,run=2,q=39242,lockwait=3,lockavg=10)|redis(cli=321,cmds=6089562,mem=7.00M,blocked=0)|active=35|throttle=0
+  LOG|codes=[200=129487 ]|slowSQL=0
+0(articles=0,users=0)|slowSQL_max=0ms|logGrowth=11MB
+feed:after@vus20:AFTER|rss=53522432|threads=85|cpuseq=599.8|mysql(conn=12,run=2,q=41171,lockwait=3,lockavg=10)|redis(cli=321,cmds=6620409,mem=7.00M,blocked=0)|active=50|throttle=50
+PEAK(feed:after@vus20)|rss=57MB|threads=85|mysql_conn=12|redis_cli=321
+  [reset:warm] active=35 throttle=0
+feed:after@vus50:BEFORE|rss=53522432|threads=85|cpuseq=599.8|mysql(conn=12,run=2,q=41183,lockwait=3,lockavg=10)|redis(cli=321,cmds=6620647,mem=7.00M,blocked=0)|active=35|throttle=0
+  LOG|codes=[200=137520 ]|slowSQL=0
+0(articles=0,users=0)|slowSQL_max=0ms|logGrowth=12MB
+feed:after@vus50:AFTER|rss=54022144|threads=84|cpuseq=709|mysql(conn=12,run=2,q=44147,lockwait=3,lockavg=10)|redis(cli=321,cmds=7193138,mem=7.00M,blocked=0)|active=50|throttle=50
+PEAK(feed:after@vus50)|rss=56MB|threads=85|mysql_conn=12|redis_cli=321
+  [reset:warm] active=35 throttle=0
+feed:after@vus100:BEFORE|rss=54022144|threads=84|cpuseq=709|mysql(conn=12,run=2,q=44162,lockwait=3,lockavg=10)|redis(cli=321,cmds=7193376,mem=7.00M,blocked=0)|active=35|throttle=0
+  LOG|codes=[200=122884 ]|slowSQL=0
+0(articles=0,users=0)|slowSQL_max=0ms|logGrowth=11MB
+feed:after@vus100:AFTER|rss=57094144|threads=84|cpuseq=782.6|mysql(conn=12,run=2,q=49408,lockwait=3,lockavg=10)|redis(cli=321,cmds=7730347,mem=7.00M,blocked=0)|active=50|throttle=50
+PEAK(feed:after@vus100)|rss=60MB|threads=84|mysql_conn=12|redis_cli=321
+  [reset:warm] active=35 throttle=0
+feed:after@vus200:BEFORE|rss=57094144|threads=84|cpuseq=782.6|mysql(conn=12,run=2,q=49423,lockwait=3,lockavg=10)|redis(cli=321,cmds=7730585,mem=7.00M,blocked=0)|active=35|throttle=0
+  LOG|codes=[200=114532 ]|slowSQL=0
+0(articles=0,users=0)|slowSQL_max=0ms|logGrowth=10MB
+feed:after@vus200:AFTER|rss=62054400|threads=84|cpuseq=850.3|mysql(conn=12,run=2,q=58898,lockwait=3,lockavg=10)|redis(cli=321,cmds=8277427,mem=7.00M,blocked=0)|active=50|throttle=50
+PEAK(feed:after@vus200)|rss=64MB|threads=84|mysql_conn=12|redis_cli=321
+  [reset:warm] active=35 throttle=0
+feed:after@vus400:BEFORE|rss=62054400|threads=84|cpuseq=850.3|mysql(conn=12,run=2,q=58910,lockwait=3,lockavg=10)|redis(cli=321,cmds=8277665,mem=7.00M,blocked=0)|active=35|throttle=0
+  LOG|codes=[200=114041 ]|slowSQL=0
+0(articles=0,users=0)|slowSQL_max=0ms|logGrowth=10MB
+feed:after@vus400:AFTER|rss=74985472|threads=84|cpuseq=922.2|mysql(conn=12,run=2,q=62613,lockwait=3,lockavg=10)|redis(cli=321,cmds=8763804,mem=7.00M,blocked=0)|active=50|throttle=50
+PEAK(feed:after@vus400)|rss=75MB|threads=84|mysql_conn=12|redis_cli=321

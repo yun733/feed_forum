@@ -1,0 +1,4 @@
+  [reset:warm] active=35 throttle=0
+article-detail:d-art@vus400:BEFORE|rss=91688960|threads=130|cpuseq=11727.7|mysql(conn=12,run=2,q=22625775,lockwait=54073,lockavg=327)|redis(cli=321,cmds=10910666,mem=7.00M,blocked=0)|active=35|throttle=0
+article-detail:d-art@vus400:AFTER|rss=849203200|threads=285|cpuseq=11835|mysql(conn=12,run=2,q=22917623,lockwait=57278,lockavg=309)|redis(cli=111,cmds=11180809,mem=3.00M,blocked=0)|active=50|throttle=50
+PEAK(article-detail:d-art@vus400)|rss=807MB|threads=285|mysql_conn=54|redis_cli=320

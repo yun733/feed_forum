@@ -1,0 +1,5 @@
+unread:afterwrite@vus20      reqs=294972  rps=9799.4  avg=1.82ms  p50=1.40ms  p95=3.85ms  p99=6.81ms  max=225.27ms  failed=0.00%  vus_max=20  dropped=0
+unread:afterwrite@vus50      reqs=237968  rps=7929.2  avg=6.01ms  p50=1.84ms  p95=34.48ms  p99=53.71ms  max=180.76ms  failed=0.00%  vus_max=50  dropped=0
+unread:afterwrite@vus100     reqs=332293  rps=11072.7  avg=8.39ms  p50=5.82ms  p95=20.73ms  p99=57.21ms  max=639.64ms  failed=0.00%  vus_max=100  dropped=0
+unread:afterwrite@vus200     reqs=311110  rps=10366.8  avg=18.15ms  p50=14.65ms  p95=45.33ms  p99=83.11ms  max=370.55ms  failed=0.00%  vus_max=200  dropped=0
+unread:afterwrite@vus400     reqs=276648  rps=9214.4  avg=32.90ms  p50=6.29ms  p95=54.39ms  p99=125.05ms  max=21206.91ms  failed=4.75%  vus_max=400  dropped=0

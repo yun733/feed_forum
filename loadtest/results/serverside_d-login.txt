@@ -1,0 +1,8 @@
+  [reset:warm] active=35 throttle=0
+login:d-login@vus100:BEFORE|rss=94445568|threads=130|cpuseq=10309.4|mysql(conn=12,run=2,q=21038055,lockwait=44115,lockavg=268)|redis(cli=321,cmds=10775673,mem=7.00M,blocked=0)|active=35|throttle=0
+login:d-login@vus100:AFTER|rss=98226176|threads=130|cpuseq=10835.6|mysql(conn=12,run=2,q=21077115,lockwait=48970,lockavg=291)|redis(cli=321,cmds=10775708,mem=7.00M,blocked=0)|active=35|throttle=0
+PEAK(login:d-login@vus100)|rss=94MB|threads=130|mysql_conn=90|redis_cli=321
+  [reset:warm] active=35 throttle=0
+login:d-login@vus200:BEFORE|rss=98226176|threads=130|cpuseq=10835.6|mysql(conn=12,run=2,q=21077124,lockwait=48970,lockavg=291)|redis(cli=321,cmds=10775790,mem=7.00M,blocked=0)|active=35|throttle=0
+login:d-login@vus200:AFTER|rss=103206912|threads=130|cpuseq=11391.8|mysql(conn=12,run=2,q=21118204,lockwait=54073,lockavg=327)|redis(cli=321,cmds=10775825,mem=7.00M,blocked=0)|active=35|throttle=0
+PEAK(login:d-login@vus200)|rss=100MB|threads=130|mysql_conn=115|redis_cli=321

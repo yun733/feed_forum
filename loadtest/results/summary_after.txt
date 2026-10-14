@@ -1,0 +1,5 @@
+feed:after@vus20             reqs=129487  rps=4310.1  avg=4.46ms  p50=4.11ms  p95=6.77ms  p99=9.10ms  max=69.22ms  failed=0.00%  vus_max=20  dropped=0
+feed:after@vus50             reqs=137520  rps=4582.9  avg=10.68ms  p50=9.84ms  p95=16.47ms  p99=20.86ms  max=86.67ms  failed=0.00%  vus_max=50  dropped=0
+feed:after@vus100            reqs=122884  rps=4094.6  avg=24.20ms  p50=22.88ms  p95=32.87ms  p99=59.52ms  max=193.82ms  failed=0.00%  vus_max=100  dropped=0
+feed:after@vus200            reqs=114532  rps=3812.2  avg=52.17ms  p50=49.31ms  p95=61.43ms  p99=142.68ms  max=355.79ms  failed=0.00%  vus_max=200  dropped=0
+feed:after@vus400            reqs=122593  rps=4078.0  avg=96.60ms  p50=101.07ms  p95=117.48ms  p99=162.64ms  max=1102.78ms  failed=6.98%  vus_max=400  dropped=0

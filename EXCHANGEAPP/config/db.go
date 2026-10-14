@@ -55,6 +55,18 @@ func InitDB() {
 	createIndexSilently(db, "idx_articles_author_time", "articles", "author_id, status, created_at DESC")
 	createIndexSilently(db, "idx_follows_follower", "follows", "follower_id")
 	createIndexSilently(db, "idx_follows_following", "follows", "following_id")
+	// fanout keyset pagination 专用：WHERE following_id = ? AND deleted_at IS NULL
+	// ORDER BY follower_id LIMIT n
+	//
+	// 三列缺一不可，原因在压测里被抓出来了：
+	// GORM 的软删除会给查询补上 `deleted_at IS NULL`，而 follows 上的
+	// `idx_follows_deleted_at`（gorm.Model 自动建的）会让优化器误判 ——
+	// 它选了那个索引，然后对 4.8 万行做 **filesort**，单批 1000 行要 507ms，
+	// 比旧代码一次性 Pluck 10 万行（407ms）还慢。
+	//
+	// 把 deleted_at 并进索引后，这个查询变成 `Using index`（索引内有序 + 索引内过滤），
+	// 不需要任何 FORCE INDEX 提示，也不依赖优化器的估算准不准。
+	createIndexSilently(db, "idx_follows_fanout", "follows", "following_id, follower_id, deleted_at")
 	createIndexSilently(db, "idx_users_active", "users", "last_active_at")
 
 	log.Println("[DB] All indexes verified/created")

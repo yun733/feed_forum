@@ -1,0 +1,1 @@
+user-profile:d-prof@vus100   reqs=134527  rps=4483.0  avg=21.82ms  p50=5.54ms  p95=113.48ms  p99=166.06ms  max=449.34ms  failed=8.05%  vus_max=100  dropped=0
